@@ -926,9 +926,11 @@
               const users=getUsers();const idx=users.findIndex(u=>u.phone===phone);
               if(idx!==-1){
                 const payout = amount * target;
+                const profit = payout - amount;
                 users[idx].balance += payout;saveUsers(users);
                 currentUser = users[idx];updateBalanceUI();
                 updateHistoryEntry(phone,h=>h.id===betId,{status:'finished',description:`Aviator WON at ${target.toFixed(2)}x (crashed ${finalCrash.toFixed(2)}x)`,detail:`Bet: $${amount.toFixed(2)} • Payout: $${payout.toFixed(2)}`,win:true,amount:payout});
+                toastSuccess(`You won $${payout.toFixed(2)} at ${target.toFixed(2)}x! Profit: +$${profit.toFixed(2)}`,'🎉 Win');
               }
               pendingBet=null;renderHistory();
             }
@@ -995,7 +997,7 @@
         addHistory(currentUser.phone,{id:betId,type:'bet',status:'pending',description:`Aviator bet — Target ${targetMultiplier.toFixed(2)}x`,detail:`Amount: $${betAmount.toFixed(2)} • Waiting for flight…`,amount:betAmount,win:false,time:createdAt});
         renderHistory();
         pendingBet={amount:betAmount,target:targetMultiplier,phone:currentUser.phone,betId:betId};
-        toastSuccess(`Bet placed: $${betAmount.toFixed(2)} at ${targetMultiplier.toFixed(2)}x`,'Bet accepted');
+        showToast(`Bet placed: $${betAmount.toFixed(2)} at ${targetMultiplier.toFixed(2)}x`,'warning','Bet accepted');
         startBtn.disabled=true;
         gameMsg.innerHTML=`<i class="fas fa-check-circle" style="color:#34a853;"></i> Bet placed! Target: ${targetMultiplier.toFixed(2)}x — waiting for flight…`;
       });
@@ -1015,6 +1017,22 @@
         return true;
       }
 
+      // Restore session on page load — keep user logged in across tab/phone restarts
+      function restoreSession(){
+        const saved = getCurrentUser();
+        if(saved){
+          currentUser = saved;
+          authSection.classList.add('hidden');
+          dashboardSection.classList.remove('hidden');
+          document.getElementById('logoutBtn').classList.remove('hidden');
+          document.getElementById('welcomeUsername').textContent = `Welcome, ${saved.fullname}`;
+          updateBalanceUI();
+          renderHistory();
+          processPendingRequests();
+          startAutoPlay();
+        }
+      }
+
       let bootTries = 0;
       const bootTimer = setInterval(()=>{
         bootTries++;
@@ -1025,11 +1043,12 @@
       }, 300);
 
       if(document.readyState === 'loading'){
-        document.addEventListener('DOMContentLoaded', bootGame);
+        document.addEventListener('DOMContentLoaded', ()=>{ restoreSession(); bootGame(); });
       } else {
+        restoreSession();
         bootGame();
       }
-      window.addEventListener('load', bootGame);
+      window.addEventListener('load', ()=>{ restoreSession(); bootGame(); });
       document.addEventListener('visibilitychange',()=>{if(!document.hidden)bootGame()});
       window.addEventListener('focus', bootGame);
       window.addEventListener('online', bootGame);
@@ -1037,6 +1056,10 @@
       setInterval(()=>{
         processPendingRequests();
         if(currentUser){currentUser=getCurrentUser();updateBalanceUI();renderHistory()}
+        else {
+          const saved = getCurrentUser();
+          if(saved) restoreSession();
+        }
         if(!autoPlayActive && !countdownInterval && !gameInterval){
           bootGame();
         }
