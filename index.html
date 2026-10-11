@@ -369,16 +369,18 @@
         <button class="method-btn" data-method="bank">Bank</button>
       </div>
       <div id="depositBinanceDetails" class="deposit-detail-box">
-        <p><strong>Crypto Deposit Address (USDT - TRC20):</strong></p>
-        <p style="font-family:monospace;word-break:break-all;font-size:13px;background:var(--surface);padding:8px;border-radius:8px;margin:6px 0;">TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE</p>
-        <p class="text-muted mt-2">Send USDT (TRC20) to this address. Min $10. After payment, upload screenshot.</p>
+        <p><strong>Binance / Crypto payment (scanner):</strong></p>
+        <!-- ======= UPDATED BINANCE SCANNER LINK ======= -->
+        <a href="https://drive.google.com/file/d/1feJH4ooBncWmPBsoVrOSaoUBT0u2O7n8/view?usp=sharing" target="_blank" rel="noopener noreferrer" class="scanner-full-btn"><i class="fas fa-qrcode"></i> Open Payment Scanner</a>
+        <!-- ============================================ -->
+        <p class="text-muted mt-2" style="text-align:center;">Scan the QR code to pay. Min $10.</p>
       </div>
       <div id="depositBankDetails" class="deposit-detail-box hidden">
         <p><strong>Bank transfer (scanner):</strong></p>
         <a href="https://drive.google.com/file/d/1_GRyYWqU8uOKmbKhUH_eqf3molYoOPuw/view?usp=drive_link" target="_blank" rel="noopener noreferrer" class="scanner-full-btn"><i class="fas fa-qrcode"></i> Open Payment Scanner</a>
         <p class="text-muted mt-2" style="text-align:center;">Scan the QR code to pay. Min $10.</p>
       </div>
-      <div id="usdExtraFields" class="hidden">
+      <div id="usdExtraFields">
         <div class="amount-summary">
           <div class="amount-row" style="flex-direction:column;align-items:stretch;gap:4px;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
@@ -694,7 +696,7 @@
       const bankDetail=document.getElementById('depositBankDetails');
       const usdExtra=document.getElementById('usdExtraFields');
       let depositMethod='binance';
-      depositMethodBtns.forEach(btn=>{btn.addEventListener('click',()=>{depositMethodBtns.forEach(b=>b.classList.remove('active'));btn.classList.add('active');depositMethod=btn.dataset.method;if(depositMethod==='binance'){binanceDetail.classList.remove('hidden');bankDetail.classList.add('hidden');usdExtra.classList.add('hidden')}else{binanceDetail.classList.add('hidden');bankDetail.classList.remove('hidden');usdExtra.classList.remove('hidden')}})});
+      depositMethodBtns.forEach(btn=>{btn.addEventListener('click',()=>{depositMethodBtns.forEach(b=>b.classList.remove('active'));btn.classList.add('active');depositMethod=btn.dataset.method;if(depositMethod==='binance'){binanceDetail.classList.remove('hidden');bankDetail.classList.add('hidden');usdExtra.classList.remove('hidden')}else{binanceDetail.classList.add('hidden');bankDetail.classList.remove('hidden');usdExtra.classList.remove('hidden')}})});
 
       const depositUsdAmount=document.getElementById('depositUsdAmount');
       const depositTotalUsd=document.getElementById('depositTotalUsd');
@@ -717,16 +719,16 @@
         const screenshot=document.getElementById('depositScreenshot').files[0];
         if(!screenshot)return toastWarning('Please upload a screenshot of your payment.','Screenshot required');
         let baseAmount=0;
-        if(depositMethod==='bank'){baseAmount=parseFloat(depositUsdAmount.value)||0;if(baseAmount<10)return toastError('Minimum deposit is $10.','Amount too low')}else{baseAmount=10}
+        if(depositMethod==='bank'||depositMethod==='binance'){baseAmount=parseFloat(depositUsdAmount.value)||0;if(baseAmount<10)return toastError('Minimum deposit is $10.','Amount too low')}
         const bonus=baseAmount*BONUS_RATE;
         const createdAt=new Date().toLocaleString();
         const approvalDelay = getDepositApprovalDelay();
         const approveAt=Date.now()+approvalDelay;
         document.getElementById('depositPendingMessage').classList.remove('hidden');
         toastInfo(`Deposit will approve within 2 Minutes. Bonus 0.5% added.`,'Request pending');
-        addHistory(currentUser.phone,{type:'deposit',description:'Deposit request (pending)',detail:depositMethod==='bank'?`Bank transfer • $${baseAmount} (bonus $${bonus.toFixed(2)})`:'Crypto • $10 (bonus $0.05)',amount:baseAmount,time:createdAt});
+        addHistory(currentUser.phone,{type:'deposit',description:'Deposit request (pending)',detail:depositMethod==='bank'?`Bank transfer • $${baseAmount} (bonus $${bonus.toFixed(2)})`:`Crypto • $${baseAmount} (bonus $${bonus.toFixed(2)})`,amount:baseAmount,time:createdAt});
         renderHistory();
-        addPendingRequest({id:'dep_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),type:'deposit',phone:currentUser.phone,baseAmount:baseAmount,bonus:bonus,detailApproved:depositMethod==='bank'?`Bank transfer • $${baseAmount} + bonus $${bonus.toFixed(2)}`:'Crypto • $10 + bonus $0.05',createdAt:createdAt,approveAt:approveAt});
+        addPendingRequest({id:'dep_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),type:'deposit',phone:currentUser.phone,baseAmount:baseAmount,bonus:bonus,detailApproved:depositMethod==='bank'?`Bank transfer • $${baseAmount} + bonus $${bonus.toFixed(2)}`:`Crypto • $${baseAmount} + bonus $${bonus.toFixed(2)}`,createdAt:createdAt,approveAt:approveAt});
         setTimeout(processPendingRequests,approvalDelay+500);
         setTimeout(()=>depositModal.classList.add('hidden'),2000);
       });
@@ -778,8 +780,8 @@
       });
 
       // ============================================================
-      // AVIATOR GAME — GUARANTEED WIN, NO WIN MESSAGE SHOWN
-      // Auto crash: 1.00 – 2.10 | User bet: crash 0.20–0.50 ABOVE target (WIN)
+      // AVIATOR GAME — FAIR MULTIPLIER (USER CAN WIN OR LOSE)
+      // Auto crash: 1.00 – 2.10 | Win if crash >= target
       // 10s betting window | Last 20 multipliers saved
       // ============================================================
       const aviatorMultiplierEl=document.getElementById('aviatorMultiplier');
@@ -852,8 +854,10 @@
         shakeCleanupTimeout=setTimeout(()=>{aviatorDisplay.classList.remove('screen-shake');shakeCleanupTimeout=null},800);
       }
 
-      function generateAutoCrashMultiplier(){return Math.round((1+Math.random()*1.10)*100)/100}
-      function generateWinningCrashMultiplier(userTarget){const bonus=0.20+Math.random()*0.30;let crash=Math.round((userTarget+bonus)*100)/100;if(crash<=userTarget)crash=userTarget+0.01;return Math.round(crash*100)/100}
+      // Fair crash multiplier: 1.00 – 2.10 (can be above or below target)
+      function generateFairCrashMultiplier() {
+        return Math.round((1 + Math.random() * 1.10) * 100) / 100;
+      }
 
       function updateCountdownBadge(seconds){
         if(seconds>0){countdownWrap.innerHTML=`<div class="countdown-badge"><i class="fas fa-hourglass-half"></i> BETTING CLOSES IN ${seconds}s</div>`}
@@ -897,9 +901,9 @@
         if(gameInterval){clearInterval(gameInterval);gameInterval=null}
         roundActive=true;
         startBtn.disabled=true;
-        let crashMultiplier;
-        if(pendingBet){crashMultiplier=generateWinningCrashMultiplier(pendingBet.target);pendingBet.forcedCrash=crashMultiplier}
-        else{crashMultiplier=generateAutoCrashMultiplier()}
+        // Fair multiplier — user can win or lose
+        let crashMultiplier = generateFairCrashMultiplier();
+        if(pendingBet) pendingBet.forcedCrash = crashMultiplier;
         roundCrashMultiplier=crashMultiplier;
         const peakMultiplier=crashMultiplier;
         const totalSteps=Math.max(40,Math.floor(peakMultiplier*40));
@@ -917,24 +921,62 @@
             clearInterval(gameInterval);gameInterval=null;
             const finalCrash=roundCrashMultiplier;
             aviatorMultiplierEl.textContent=finalCrash.toFixed(2)+'x';
-            aviatorMultiplierEl.className='aviator-multiplier win';
-            aviatorPlane.className='aviator-plane crashed';
-            playCrashFX();
-            addMultiplierToHistory(finalCrash);
+
             if(pendingBet && currentUser){
               const { amount, target, phone, betId } = pendingBet;
-              const users=getUsers();const idx=users.findIndex(u=>u.phone===phone);
-              if(idx!==-1){
+              const won = finalCrash >= target;
+
+              if (won) {
+                // WIN
                 const payout = amount * target;
-                const profit = payout - amount;
-                users[idx].balance += payout;saveUsers(users);
-                currentUser = users[idx];updateBalanceUI();
-                updateHistoryEntry(phone,h=>h.id===betId,{status:'finished',description:`Aviator WON at ${target.toFixed(2)}x (crashed ${finalCrash.toFixed(2)}x)`,detail:`Bet: $${amount.toFixed(2)} • Payout: $${payout.toFixed(2)}`,win:true,amount:payout});
-                toastSuccess(`You won $${payout.toFixed(2)} at ${target.toFixed(2)}x! Profit: +$${profit.toFixed(2)}`,'🎉 Win');
+                aviatorMultiplierEl.className = 'aviator-multiplier win';
+                aviatorPlane.className = 'aviator-plane';
+                const users = getUsers();
+                const idx = users.findIndex(u => u.phone === phone);
+                if (idx !== -1) {
+                  users[idx].balance = (users[idx].balance || 0) + payout;
+                  saveUsers(users);
+                  currentUser = users[idx];
+                  updateBalanceUI();
+                }
+                updateHistoryEntry(phone, h => h.id === betId, {
+                  status: 'finished',
+                  description: `Aviator WON at ${target.toFixed(2)}x (crashed ${finalCrash.toFixed(2)}x)`,
+                  detail: `Bet: $${amount.toFixed(2)} • Payout: $${payout.toFixed(2)}`,
+                  win: true,
+                  amount: payout
+                });
+                // GREEN WIN TOAST
+                toastWin(`You won $${payout.toFixed(2)} at ${target.toFixed(2)}x!`, '🎉 Win!');
+                gameMsg.innerHTML = `<i class="fas fa-trophy" style="color:#34a853;"></i> WON $${payout.toFixed(2)} at ${target.toFixed(2)}x!`;
+              } else {
+                // LOSS
+                aviatorMultiplierEl.className = 'aviator-multiplier loss';
+                aviatorPlane.className = 'aviator-plane crashed';
+                playCrashFX();
+                updateHistoryEntry(phone, h => h.id === betId, {
+                  status: 'finished',
+                  description: `Aviator LOST at ${target.toFixed(2)}x (crashed ${finalCrash.toFixed(2)}x)`,
+                  detail: `Bet: $${amount.toFixed(2)} • No payout`,
+                  win: false,
+                  amount: amount
+                });
+                toastLoss(`Bet lost at ${finalCrash.toFixed(2)}x (target ${target.toFixed(2)}x)`, 'Better luck next time');
+                gameMsg.innerHTML = `💥 CRASHED at ${finalCrash.toFixed(2)}x — you lost $${amount.toFixed(2)}`;
               }
-              pendingBet=null;renderHistory();
+
+              pendingBet = null;
+              renderHistory();
+            } else {
+              // No bet — just show crash
+              aviatorMultiplierEl.className = 'aviator-multiplier loss';
+              aviatorPlane.className = 'aviator-plane crashed';
+              playCrashFX();
+              gameMsg.textContent = `💥 CRASHED at ${finalCrash.toFixed(2)}x`;
             }
-            gameMsg.textContent=`💥 CRASHED at ${finalCrash.toFixed(2)}x`;
+
+            addMultiplierToHistory(finalCrash);
+
             setTimeout(()=>{
               if(!autoPlayActive){roundActive=false;startBtn.disabled=false;return}
               startBettingWindow();
@@ -997,7 +1039,8 @@
         addHistory(currentUser.phone,{id:betId,type:'bet',status:'pending',description:`Aviator bet — Target ${targetMultiplier.toFixed(2)}x`,detail:`Amount: $${betAmount.toFixed(2)} • Waiting for flight…`,amount:betAmount,win:false,time:createdAt});
         renderHistory();
         pendingBet={amount:betAmount,target:targetMultiplier,phone:currentUser.phone,betId:betId};
-        showToast(`Bet placed: $${betAmount.toFixed(2)} at ${targetMultiplier.toFixed(2)}x`,'warning','Bet accepted');
+        // YELLOW TOAST for bet placed
+        toastWarning(`Bet placed: $${betAmount.toFixed(2)} at ${targetMultiplier.toFixed(2)}x`, 'Bet accepted');
         startBtn.disabled=true;
         gameMsg.innerHTML=`<i class="fas fa-check-circle" style="color:#34a853;"></i> Bet placed! Target: ${targetMultiplier.toFixed(2)}x — waiting for flight…`;
       });
@@ -1017,22 +1060,6 @@
         return true;
       }
 
-      // Restore session on page load — keep user logged in across tab/phone restarts
-      function restoreSession(){
-        const saved = getCurrentUser();
-        if(saved){
-          currentUser = saved;
-          authSection.classList.add('hidden');
-          dashboardSection.classList.remove('hidden');
-          document.getElementById('logoutBtn').classList.remove('hidden');
-          document.getElementById('welcomeUsername').textContent = `Welcome, ${saved.fullname}`;
-          updateBalanceUI();
-          renderHistory();
-          processPendingRequests();
-          startAutoPlay();
-        }
-      }
-
       let bootTries = 0;
       const bootTimer = setInterval(()=>{
         bootTries++;
@@ -1043,12 +1070,11 @@
       }, 300);
 
       if(document.readyState === 'loading'){
-        document.addEventListener('DOMContentLoaded', ()=>{ restoreSession(); bootGame(); });
+        document.addEventListener('DOMContentLoaded', bootGame);
       } else {
-        restoreSession();
         bootGame();
       }
-      window.addEventListener('load', ()=>{ restoreSession(); bootGame(); });
+      window.addEventListener('load', bootGame);
       document.addEventListener('visibilitychange',()=>{if(!document.hidden)bootGame()});
       window.addEventListener('focus', bootGame);
       window.addEventListener('online', bootGame);
@@ -1056,16 +1082,31 @@
       setInterval(()=>{
         processPendingRequests();
         if(currentUser){currentUser=getCurrentUser();updateBalanceUI();renderHistory()}
-        else {
-          const saved = getCurrentUser();
-          if(saved) restoreSession();
-        }
         if(!autoPlayActive && !countdownInterval && !gameInterval){
           bootGame();
         }
       }, 5000);
 
       processPendingRequests();
+
+      // ---- EARLY SESSION RESTORE ----
+      (function earlyRestore() {
+        const phone = localStorage.getItem(STORAGE_PREFIX + 'currentUser');
+        if (phone) {
+          const user = getCurrentUser();
+          if (user) {
+            currentUser = user;
+            authSection.classList.add('hidden');
+            dashboardSection.classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('welcomeUsername').textContent = `Welcome, ${user.fullname}`;
+            updateBalanceUI();
+            renderHistory();
+            processPendingRequests();
+            startAutoPlay();
+          }
+        }
+      })();
 
       window.showDashboard=showDashboard;
       window.stopAutoPlay=stopAutoPlay;
