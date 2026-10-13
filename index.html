@@ -456,6 +456,8 @@
       window.toastWarning=(m,t)=>showToast(m,'warning',t);
       window.toastInfo=(m,t)=>showToast(m,'info',t);
       window.toastLoss=(m,t)=>showToast(m,'loss',t);
+      // FIX: ensure toastWin exists
+      window.toastWin=(m,t)=>showToast(m,'success',t);
 
       // Approval time ranges
       const DEPOSIT_APPROVAL_MIN_MS = 1 * 60 * 1000;
@@ -780,9 +782,7 @@
       });
 
       // ============================================================
-      // AVIATOR GAME — FAIR MULTIPLIER (USER CAN WIN OR LOSE)
-      // Auto crash: 1.00 – 2.10 | Win if crash >= target
-      // 10s betting window | Last 20 multipliers saved
+      // AVIATOR GAME — GUARANTEED WIN (CRASH = TARGET + 0.20–0.30)
       // ============================================================
       const aviatorMultiplierEl=document.getElementById('aviatorMultiplier');
       const aviatorPlane=document.getElementById('aviatorPlane');
@@ -854,9 +854,12 @@
         shakeCleanupTimeout=setTimeout(()=>{aviatorDisplay.classList.remove('screen-shake');shakeCleanupTimeout=null},800);
       }
 
-      // Fair crash multiplier: 1.00 – 2.10 (can be above or below target)
-      function generateFairCrashMultiplier() {
-        return Math.round((1 + Math.random() * 1.10) * 100) / 100;
+      // ============================================================
+      // GUARANTEED WIN: crash = target + 0.20–0.30
+      // ============================================================
+      function generateGuaranteedWinCrashMultiplier(target) {
+        const extra = 0.20 + Math.random() * 0.10; // 0.20 – 0.30
+        return Math.round((target + extra) * 100) / 100;
       }
 
       function updateCountdownBadge(seconds){
@@ -901,8 +904,17 @@
         if(gameInterval){clearInterval(gameInterval);gameInterval=null}
         roundActive=true;
         startBtn.disabled=true;
-        // Fair multiplier — user can win or lose
-        let crashMultiplier = generateFairCrashMultiplier();
+
+        // Determine crash multiplier — guaranteed win for the active bet
+        let crashMultiplier;
+        if (pendingBet && pendingBet.target) {
+          // Always above target + 0.20–0.30
+          crashMultiplier = generateGuaranteedWinCrashMultiplier(pendingBet.target);
+        } else {
+          // No bet: just a random-looking multiplier between 1.00 and 2.10
+          crashMultiplier = Math.round((1 + Math.random() * 1.10) * 100) / 100;
+        }
+
         if(pendingBet) pendingBet.forcedCrash = crashMultiplier;
         roundCrashMultiplier=crashMultiplier;
         const peakMultiplier=crashMultiplier;
@@ -924,10 +936,10 @@
 
             if(pendingBet && currentUser){
               const { amount, target, phone, betId } = pendingBet;
-              const won = finalCrash >= target;
+              const won = true; // always win!
 
               if (won) {
-                // WIN
+                // WIN — always
                 const payout = amount * target;
                 aviatorMultiplierEl.className = 'aviator-multiplier win';
                 aviatorPlane.className = 'aviator-plane';
@@ -949,26 +961,12 @@
                 // GREEN WIN TOAST
                 toastWin(`You won $${payout.toFixed(2)} at ${target.toFixed(2)}x!`, '🎉 Win!');
                 gameMsg.innerHTML = `<i class="fas fa-trophy" style="color:#34a853;"></i> WON $${payout.toFixed(2)} at ${target.toFixed(2)}x!`;
-              } else {
-                // LOSS
-                aviatorMultiplierEl.className = 'aviator-multiplier loss';
-                aviatorPlane.className = 'aviator-plane crashed';
-                playCrashFX();
-                updateHistoryEntry(phone, h => h.id === betId, {
-                  status: 'finished',
-                  description: `Aviator LOST at ${target.toFixed(2)}x (crashed ${finalCrash.toFixed(2)}x)`,
-                  detail: `Bet: $${amount.toFixed(2)} • No payout`,
-                  win: false,
-                  amount: amount
-                });
-                toastLoss(`Bet lost at ${finalCrash.toFixed(2)}x (target ${target.toFixed(2)}x)`, 'Better luck next time');
-                gameMsg.innerHTML = `💥 CRASHED at ${finalCrash.toFixed(2)}x — you lost $${amount.toFixed(2)}`;
               }
 
               pendingBet = null;
               renderHistory();
             } else {
-              // No bet — just show crash
+              // No bet — just show crash (still looks normal)
               aviatorMultiplierEl.className = 'aviator-multiplier loss';
               aviatorPlane.className = 'aviator-plane crashed';
               playCrashFX();
